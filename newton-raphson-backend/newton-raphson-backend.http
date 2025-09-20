@@ -4,12 +4,12 @@ Content-Type: application/json
 
 {
   "functionStr": "x^2 - 4*x + 3",
-  "derivativeStr": "2*x - 4",
   "initialGuess": -5,
   "tolerance": 0.0001,
   "maxIterations": 100
 }
 
-# here use id from post request result
+
+### here use id from post request result
 ### 
-GET https://localhost:7165/api/newtonraphson/progress/4257b825-76b1-472f-985a-be1b7509a3a2
+GET https://localhost:7165/api/newtonraphson/progress/895b45fa-60ea-4602-82e7-5f0471126f14

@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using NCalc;
+using newton_raphson_backend.Helpers;
 using newton_raphson_backend.Models;
 using System.Collections.Concurrent;
 using System.Threading.Tasks;
@@ -33,6 +34,8 @@ namespace newton_raphson_backend.Controllers
                 {
                     double x = request.InitialGuess;
 
+                    string derivativeStr = DerivativeHelper.GetDerivative(request.FunctionStr);
+
                     for (int i = 0; i < request.MaxIterations; i++)
                     {
                         if (progress.Cancellation.IsCancellationRequested)
@@ -42,7 +45,7 @@ namespace newton_raphson_backend.Controllers
                         }
 
                         double fx = EvaluateFunction(ConvertExpression(request.FunctionStr), x);
-                        double fPrimeX = EvaluateFunction(ConvertExpression(request.DerivativeStr), x);
+                        double fPrimeX = EvaluateFunction(ConvertExpression(derivativeStr), x);
 
                         if (Math.Abs(fPrimeX) < 1e-10)
                         {
