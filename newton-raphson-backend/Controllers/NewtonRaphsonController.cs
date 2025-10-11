@@ -22,7 +22,7 @@ namespace newton_raphson_backend.Controllers
 
         [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(SolveResponse))]
         [HttpPost("solve")]
-        public IActionResult Solve([FromBody] SolveRequest request)
+        public IActionResult Solve([FromBody] SolveRequest request, [FromHeader(Name = "X-Connection-ID")] string? connectionId = null)
         {
             string taskId = Guid.NewGuid().ToString();
             var progress = new TaskProgress { Id = taskId, Status = "In Progress" };
@@ -33,8 +33,12 @@ namespace newton_raphson_backend.Controllers
                 try
                 {
                     double x = request.InitialGuess;
-
                     string derivativeStr = DerivativeHelper.GetDerivative(request.FunctionStr);
+
+                    var clients = _hubContext?.Clients;
+                    IClientProxy? targetClient = string.IsNullOrWhiteSpace(connectionId)
+                        ? clients?.All
+                        : clients?.Client(connectionId);
 
                     for (int i = 0; i < request.MaxIterations; i++)
                     {
@@ -56,18 +60,18 @@ namespace newton_raphson_backend.Controllers
                         double xNext = x - fx / fPrimeX;
                         progress.Progress = (i + 1) * 100.0 / request.MaxIterations;
 
-                        await _hubContext.Clients.All.SendAsync("ProgressUpdate", taskId, progress.Progress);
+                        await targetClient!.SendAsync("ProgressUpdate", taskId, progress.Progress);
 
                         if (Math.Abs(xNext - x) < request.Tolerance)
                         {
                             progress.Status = "Completed";
                             progress.Result = xNext;
+                            progress.Progress = 100.0; // ✅ force 100% when done
                             break;
                         }
 
                         x = xNext;
-
-                        //Slow down: await Task.Delay(100);
+                        await Task.Delay(100); // optional to simulate progress
                     }
 
                     if (progress.Status == "In Progress")
@@ -75,7 +79,11 @@ namespace newton_raphson_backend.Controllers
                         progress.Status = "Failed: Max iterations reached.";
                     }
 
-                    await _hubContext.Clients.All.SendAsync("TaskCompleted", taskId, progress);
+                    // ✅ Always send full 100% on completion
+                    if (progress.Status == "Completed")
+                        progress.Progress = 100.0;
+
+                    await targetClient!.SendAsync("TaskCompleted", taskId, progress);
                 }
                 catch (Exception ex)
                 {
@@ -87,21 +95,14 @@ namespace newton_raphson_backend.Controllers
             return Ok(new SolveResponse { TaskId = taskId });
         }
 
-        [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(TaskProgress))]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]
         [HttpGet("progress/{taskId}")]
         public IActionResult GetProgress(string taskId)
         {
             if (_tasks.TryGetValue(taskId, out var progress))
-            {
                 return Ok(progress);
-            }
-
             return NotFound("Task not found.");
         }
 
-        [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(TaskProgress))]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]
         [HttpPost("cancel/{taskId}")]
         public IActionResult Cancel(string taskId)
         {
@@ -117,20 +118,11 @@ namespace newton_raphson_backend.Controllers
         {
             var expression = new Expression(function);
             expression.Parameters["x"] = x;
-
-            try
-            {
-                return Convert.ToDouble(expression.Evaluate());
-            }
-            catch (Exception ex)
-            {
-                throw new InvalidOperationException($"Failed to evaluate expression '{function}': {ex.Message}");
-            }
+            return Convert.ToDouble(expression.Evaluate());
         }
 
         private static string ConvertExpression(string input)
         {
-            // Проста заміна x^2 → Pow(x,2) для правильного вводу рівняння
             var regex = new System.Text.RegularExpressions.Regex(@"(\w+)\s*\^\s*(\w+)");
             return regex.Replace(input, "Pow($1,$2)");
         }

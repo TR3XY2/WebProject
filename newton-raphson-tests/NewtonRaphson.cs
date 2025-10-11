@@ -18,14 +18,15 @@ namespace newton_raphson_tests
             var request = new SolveRequest
             {
                 FunctionStr = "x^2 - 4",
-                DerivativeStr = "2*x",
                 InitialGuess = 2.0,
                 Tolerance = 0.001,
                 MaxIterations = 100
             };
 
+            string? connectionId = "test-connection-id"; // Provide a valid connectionId
+
             // Act
-            var actionResult = controller.Solve(request);
+            var actionResult = controller.Solve(request, connectionId);
             var result = actionResult as OkObjectResult;
 
             // Assert
