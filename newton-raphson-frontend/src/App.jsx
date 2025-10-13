@@ -47,6 +47,12 @@ function App() {
     };
   }, []);
 
+  useEffect(() => {
+    if (status === "Completed") {
+      setProgress(100);
+    }
+  }, [status]);
+
   const handleStart = async (request) => {
     try {
       setProgress(0);
