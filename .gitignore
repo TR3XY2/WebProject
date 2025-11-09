@@ -23,3 +23,4 @@ obj/
 # Dependencies
 node_modules/
 wwwroot/lib/
+/newton-raphson-backend/appsettings.json

@@ -27,8 +27,12 @@ export async function connectSignalR(onProgress, onCompleted) {
 
   connection.on("TaskCompleted", (taskId, data) => {
     console.log("TaskCompleted:", taskId, data);
+    if (data.status === "Completed") {
+      onProgress(taskId, 100); // ✅ ensure progress bar is full
+    }
     onCompleted(taskId, data);
   });
+
 
   connection.onclose((err) => {
     console.warn("🛑 SignalR disconnected", err);

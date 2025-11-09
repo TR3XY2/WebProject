@@ -1,93 +1,80 @@
-import React, { useEffect, useRef, useState } from "react";
-import { Container } from "react-bootstrap";
+import React, { useState, useEffect } from "react";
+import axios from "axios";
+import { Container, Nav, Navbar } from "react-bootstrap";
 import NewtonRaphsonForm from "./components/NewtonRaphsonForm";
 import ProgressTracker from "./components/ProgressTracker";
+import LoginForm from "./components/LoginForm";
+import RegisterForm from "./components/RegisterForm";
+import HistoryTable from "./components/HistoryTable";
 import { connectSignalR, startSolve, cancelTask } from "./api/newtonRaphsonApi";
 
+const API_BASE = "https://localhost:5001/api";
+
 function App() {
-  const [taskId, setTaskId] = useState(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState("Idle");
   const [result, setResult] = useState(null);
-  const connectionRef = useRef(null);
-  const taskIdRef = useRef(null); // ✅ holds the latest taskId
+  const [taskId, setTaskId] = useState(null);
 
-  // keep ref updated
   useEffect(() => {
-    taskIdRef.current = taskId;
-  }, [taskId]);
-
-  // 🔹 Connect to SignalR once
-  useEffect(() => {
-    (async () => {
-      try {
-        const conn = await connectSignalR(
-          (id, prog) => {
-            // ✅ use latest taskId via ref
-            if (id === taskIdRef.current) {
-              setProgress(prog);
-            }
-          },
-          (id, data) => {
-            if (id === taskIdRef.current) {
-              setStatus(data.status);
-              setResult(data.result ?? null);
-            }
-          }
-        );
-        connectionRef.current = conn;
-      } catch (err) {
-        console.error("SignalR connection failed:", err);
-      }
-    })();
-
-    return () => {
-      const conn = connectionRef.current;
-      if (conn && conn.state === "Connected") conn.stop();
-    };
+    axios
+      .get(`${API_BASE}/Auth/check`, { withCredentials: true })
+      .then(() => setIsAuthenticated(true))
+      .catch(() => setIsAuthenticated(false));
   }, []);
 
-  useEffect(() => {
-    if (status === "Completed") {
-      setProgress(100);
-    }
-  }, [status]);
-
-  const handleStart = async (request) => {
-    try {
-      setProgress(0);
-      setResult(null);
-      setStatus("In Progress");
-
-      const { taskId } = await startSolve(request);
-      setTaskId(taskId);
-      taskIdRef.current = taskId; // ✅ ensure ref is in sync
-    } catch (err) {
-      console.error("Start solve failed:", err);
-      setStatus("Error");
-    }
-  };
-
-  const handleCancel = async () => {
-    if (!taskIdRef.current) return;
-    await cancelTask(taskIdRef.current);
-    setStatus("Cancelled");
-  };
+  const handleLogin = () => setIsAuthenticated(true);
+  const handleLogout = () => setIsAuthenticated(false);
 
   return (
-    <Container className="p-4" style={{ maxWidth: 600 }}>
-      <h2 className="mb-4 text-center">Newton–Raphson Solver</h2>
-      <NewtonRaphsonForm onStart={handleStart} />
-      {taskId && (
-        <ProgressTracker
-          progress={progress}
-          status={status}
-          result={result}
-          onCancel={handleCancel}
-          disabled={status !== "In Progress"}
-        />
-      )}
-    </Container>
+    <>
+      <Navbar bg="dark" variant="dark">
+        <Container>
+          <Navbar.Brand>Newton–Raphson Solver</Navbar.Brand>
+        </Container>
+      </Navbar>
+      <Container className="py-4" style={{ maxWidth: 800 }}>
+        {!isAuthenticated ? (
+          <>
+            <LoginForm
+              onLogin={handleLogin}
+              onLogout={handleLogout}
+              isAuthenticated={isAuthenticated}
+            />
+            <div className="mt-3">
+              <RegisterForm />
+            </div>
+          </>
+        ) : (
+          <>
+            <NewtonRaphsonForm
+              onStart={async (req) => {
+                const conn = await connectSignalR(
+                  (id, prog) => setProgress(prog),
+                  (id, data) => {
+                    setStatus(data.status);
+                    setResult(data.result);
+                  }
+                );
+                const res = await startSolve(req);
+                setTaskId(res.taskId);
+              }}
+            />
+            {taskId && (
+              <ProgressTracker
+                progress={progress}
+                status={status}
+                result={result}
+                onCancel={() => cancelTask(taskId)}
+                disabled={status !== "In Progress"}
+              />
+            )}
+            <HistoryTable />
+          </>
+        )}
+      </Container>
+    </>
   );
 }
 
