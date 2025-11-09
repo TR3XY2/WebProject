@@ -1,7 +1,10 @@
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using newton_raphson_backend.Controllers;
+using newton_raphson_backend.Data;
 using newton_raphson_backend.Models;
 
 namespace newton_raphson_tests
@@ -13,7 +16,26 @@ namespace newton_raphson_tests
         {
             // Arrange
             var mockHubContext = new Mock<IHubContext<ProgressHub>>();
-            var controller = new NewtonRaphsonController(mockHubContext.Object);
+            var mockDbContext = new Mock<AppDbContext>(); // Mock AppDbContext
+            var mockUserStore = new Mock<IUserStore<IdentityUser>>(); // Mock IUserStore
+            var mockUserManager = new Mock<UserManager<IdentityUser>>(
+                mockUserStore.Object,
+                null!,
+                null!,
+                null!,
+                null!,
+                null!,
+                null!,
+                null!,
+                null!);
+
+            var mockScopeFactory = new Mock<IServiceScopeFactory>(); // Mock IServiceScopeFactory
+
+            var controller = new NewtonRaphsonController(
+                mockHubContext.Object,
+                mockDbContext.Object,
+                mockUserManager.Object,
+                mockScopeFactory.Object); // Pass the mockScopeFactory
 
             var request = new SolveRequest
             {

@@ -1,23 +1,46 @@
-﻿using newton_raphson_backend.Models;
+﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+using newton_raphson_backend.Data;
+using newton_raphson_backend.Models;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+builder.Services.AddIdentity<IdentityUser, IdentityRole>(options =>
+{
+    options.Password.RequireDigit = true;
+    options.Password.RequiredLength = 6;
+    options.Password.RequireUppercase = false;
+    options.Password.RequireNonAlphanumeric = false;
+})
+.AddEntityFrameworkStores<AppDbContext>()
+.AddDefaultTokenProviders();
+
+builder.Services.ConfigureApplicationCookie(options =>
+{
+    options.Cookie.HttpOnly = true;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    options.Cookie.SameSite = SameSiteMode.None;
+    options.Cookie.Name = "NewtonAuth";
+    options.LoginPath = "/api/Auth/login";
+    options.LogoutPath = "/api/Auth/logout";
+    options.SlidingExpiration = true;
+});
 
 builder.Services.AddControllers();
 builder.Services.AddSignalR();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// ✅ Allow both http and https React origins
-builder.Services.AddCors(options =>
+builder.Services.AddCors(o =>
 {
-    options.AddPolicy("AllowReactApp", policy =>
-    {
-        policy
-            .WithOrigins("http://localhost:3000", "https://localhost:3000")
-            .AllowAnyHeader()
-            .AllowAnyMethod()
-            .AllowCredentials();
-    });
+    o.AddPolicy("AllowReactApp", p =>
+        p.WithOrigins("http://localhost:3000", "https://localhost:3000")
+         .AllowAnyHeader()
+         .AllowAnyMethod()
+         .AllowCredentials());
 });
 
 var app = builder.Build();
@@ -28,16 +51,14 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-// ✅ Middleware order
 app.UseHttpsRedirection();
 app.UseRouting();
 app.UseCors("AllowReactApp");
+
+app.UseAuthentication();
 app.UseAuthorization();
 
-app.UseEndpoints(endpoints =>
-{
-    endpoints.MapControllers();
-    endpoints.MapHub<ProgressHub>("/progressHub").RequireCors("AllowReactApp");
-});
+app.MapControllers();
+app.MapHub<ProgressHub>("/progressHub").RequireCors("AllowReactApp");
 
-app.Run();
+await app.RunAsync();
