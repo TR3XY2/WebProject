@@ -1,24 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { Table, Alert } from "react-bootstrap";
-import { getHistory } from "../api/authApi";
 
-export default function HistoryTable() {
-  const [history, setHistory] = useState([]);
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const data = await getHistory();
-        setHistory(data);
-      } catch (err) {
-        setError("Failed to load history (are you logged in?)");
-      }
-    })();
-  }, []);
-
-  if (error) return <Alert variant="danger">{error}</Alert>;
-  if (!history.length) return <Alert variant="info">No history yet.</Alert>;
+export default function HistoryTable({ items }) {
+  if (!items) return <Alert variant="info">Loading...</Alert>;
+  if (items.length === 0) return <Alert variant="info">No history yet.</Alert>;
 
   return (
     <div className="mt-4">
@@ -36,7 +21,7 @@ export default function HistoryTable() {
           </tr>
         </thead>
         <tbody>
-          {history.map((h) => (
+          {items.map((h) => (
             <tr key={h.id}>
               <td>{h.functionStr}</td>
               <td>{h.initialGuess}</td>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import { Container, Nav, Navbar } from "react-bootstrap";
+import { Container, Navbar, Tab, Tabs } from "react-bootstrap";
 import NewtonRaphsonForm from "./components/NewtonRaphsonForm";
 import ProgressTracker from "./components/ProgressTracker";
 import LoginForm from "./components/LoginForm";
@@ -16,7 +16,10 @@ function App() {
   const [status, setStatus] = useState("Idle");
   const [result, setResult] = useState(null);
   const [taskId, setTaskId] = useState(null);
+  const [activeTab, setActiveTab] = useState("main");
+  const [history, setHistory] = useState([]); // ✅ keep history state here
 
+  // ✅ Check auth on mount
   useEffect(() => {
     axios
       .get(`${API_BASE}/Auth/check`, { withCredentials: true })
@@ -24,8 +27,50 @@ function App() {
       .catch(() => setIsAuthenticated(false));
   }, []);
 
-  const handleLogin = () => setIsAuthenticated(true);
-  const handleLogout = () => setIsAuthenticated(false);
+  // ✅ Load history if logged in
+  const loadHistory = async () => {
+    try {
+      const res = await axios.get(`${API_BASE}/NewtonRaphson/history`, {
+        withCredentials: true,
+      });
+      setHistory(res.data);
+    } catch (err) {
+      console.warn("Failed to load history (maybe not logged in)");
+    }
+  };
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      loadHistory();
+    }
+  }, [isAuthenticated]);
+
+  const handleLogin = () => {
+    setIsAuthenticated(true);
+    setActiveTab("main");
+  };
+
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    setHistory([]);
+  };
+
+  const handleStart = async (req) => {
+    const conn = await connectSignalR(
+      (id, prog) => setProgress(prog),
+      async (id, data) => {
+        setStatus(data.status);
+        setResult(data.result);
+
+        // ✅ Reload history when a solve finishes
+        if (data.status === "Completed" || data.status.startsWith("Failed")) {
+          await loadHistory();
+        }
+      }
+    );
+    const res = await startSolve(req);
+    setTaskId(res.taskId);
+  };
 
   return (
     <>
@@ -34,33 +79,16 @@ function App() {
           <Navbar.Brand>Newton–Raphson Solver</Navbar.Brand>
         </Container>
       </Navbar>
+
       <Container className="py-4" style={{ maxWidth: 800 }}>
-        {!isAuthenticated ? (
-          <>
-            <LoginForm
-              onLogin={handleLogin}
-              onLogout={handleLogout}
-              isAuthenticated={isAuthenticated}
-            />
-            <div className="mt-3">
-              <RegisterForm />
-            </div>
-          </>
-        ) : (
-          <>
-            <NewtonRaphsonForm
-              onStart={async (req) => {
-                const conn = await connectSignalR(
-                  (id, prog) => setProgress(prog),
-                  (id, data) => {
-                    setStatus(data.status);
-                    setResult(data.result);
-                  }
-                );
-                const res = await startSolve(req);
-                setTaskId(res.taskId);
-              }}
-            />
+        <Tabs
+          activeKey={activeTab}
+          onSelect={(k) => setActiveTab(k || "main")}
+          className="mb-3"
+          justify
+        >
+          <Tab eventKey="main" title="Solver">
+            <NewtonRaphsonForm onStart={handleStart} />
             {taskId && (
               <ProgressTracker
                 progress={progress}
@@ -70,9 +98,28 @@ function App() {
                 disabled={status !== "In Progress"}
               />
             )}
-            <HistoryTable />
-          </>
-        )}
+
+            {isAuthenticated ? (
+              <HistoryTable items={history} />
+            ) : (
+              <p className="mt-3 text-muted text-center">
+                🔒 Login or Register to view your solve history.
+              </p>
+            )}
+          </Tab>
+
+          <Tab eventKey="login" title="Login">
+            <LoginForm
+              onLogin={handleLogin}
+              onLogout={handleLogout}
+              isAuthenticated={isAuthenticated}
+            />
+          </Tab>
+
+          <Tab eventKey="register" title="Register">
+            <RegisterForm />
+          </Tab>
+        </Tabs>
       </Container>
     </>
   );
