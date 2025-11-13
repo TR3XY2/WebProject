@@ -9,6 +9,24 @@ const NewtonRaphsonForm = ({ onStart }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+
+    if (!/^[0-9x+\-*/^().\s]+$/.test(functionStr)) {
+      alert(
+        "❌ Invalid characters in function.\nUse only numbers, x, and operators (+ - * / ^)."
+      );
+      return;
+    }
+
+    if (maxIterations > 500) {
+      alert("❌ Too many iterations (max 500)");
+      return;
+    }
+
+    if (Math.abs(initialGuess) > 1e6) {
+      alert("❌ Initial guess is too large (|x₀| ≤ 1e6)");
+      return;
+    }
+
     onStart({
       functionStr,
       initialGuess: parseFloat(initialGuess),

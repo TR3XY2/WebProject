@@ -35,26 +35,32 @@ namespace newton_raphson_backend.Controllers
         [HttpPost("solve")]
         public IActionResult Solve([FromBody] SolveRequest request, [FromHeader(Name = "X-Connection-ID")] string? connectionId = null)
         {
-            // Generate task id and initial progress object
+            if (request.MaxIterations > 500 || Math.Abs(request.InitialGuess) > 1e6)
+            {
+                return BadRequest("Task too large. Max iterations = 500, |InitialGuess| ≤ 1e6.");
+            }
+
+            var activeTasks = _tasks.Values.Count(t => t.Status == "In Progress");
+            if (activeTasks >= 3)
+            {
+                return BadRequest("Too many concurrent tasks. Please wait until one finishes.");
+            }
+
             string taskId = Guid.NewGuid().ToString();
             var progress = new TaskProgress { Id = taskId, Status = "In Progress", Progress = 0.0 };
             _tasks[taskId] = progress;
 
-            // Capture current user id (if authenticated) BEFORE starting background work
             string? capturedUserId = null;
 
             if (User?.Identity?.IsAuthenticated == true)
             {
-                // NOTE: GetUserAsync touches UserManager and the HttpContext; do it synchronously here
-                // (still asynchronous because ASP.NET Identity is async)
                 var userTask = _userManager.GetUserAsync(User);
-                userTask.Wait(); // small synchronous wait – acceptable here because controller request is active
+                userTask.Wait();
                 var user = userTask.Result;
                 if (user != null)
                     capturedUserId = user.Id;
             }
 
-            // Start background task (fire-and-forget)
             _ = Task.Run(async () =>
             {
                 try
@@ -86,10 +92,8 @@ namespace newton_raphson_backend.Controllers
 
                         double xNext = x - fx / fPrimeX;
 
-                        // update progress percent (1..MaxIterations)
                         progress.Progress = (i + 1) * 100.0 / request.MaxIterations;
 
-                        // send incremental progress to clients
                         if (targetClient != null)
                         {
                             try { await targetClient.SendAsync("ProgressUpdate", taskId, progress.Progress); }
@@ -111,11 +115,9 @@ namespace newton_raphson_backend.Controllers
                     if (progress.Status == "In Progress")
                         progress.Status = "Failed: Max iterations reached.";
 
-                    // ensure completion progress is 100 when completed
                     if (progress.Status == "Completed")
                         progress.Progress = 100.0;
 
-                    // final notification
                     if (targetClient != null)
                     {
                         try { await targetClient.SendAsync("TaskCompleted", taskId, progress); }
@@ -129,11 +131,9 @@ namespace newton_raphson_backend.Controllers
                     {
                         try
                         {
-                            // create a new scope and use a fresh DbContext instance (safe for background)
                             using var scope = _scopeFactory.CreateScope();
                             var scopedDb = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-                            // create history record (use capturedUserId)
                             var history = new SolveHistory
                             {
                                 FunctionStr = request.FunctionStr,
@@ -151,7 +151,6 @@ namespace newton_raphson_backend.Controllers
                         }
                         catch (Exception ex)
                         {
-                            // log — but don't throw (background task)
                             Console.WriteLine($"Error saving history in background task: {ex}");
                         }
                     }
@@ -163,7 +162,6 @@ namespace newton_raphson_backend.Controllers
                 }
             });
 
-            // return task id immediately
             return Ok(new SolveResponse { TaskId = taskId });
         }
 

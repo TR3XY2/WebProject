@@ -17,9 +17,8 @@ function App() {
   const [result, setResult] = useState(null);
   const [taskId, setTaskId] = useState(null);
   const [activeTab, setActiveTab] = useState("main");
-  const [history, setHistory] = useState([]); // ✅ keep history state here
+  const [history, setHistory] = useState([]);
 
-  // ✅ Check auth on mount
   useEffect(() => {
     axios
       .get(`${API_BASE}/Auth/check`, { withCredentials: true })
@@ -27,7 +26,6 @@ function App() {
       .catch(() => setIsAuthenticated(false));
   }, []);
 
-  // ✅ Load history if logged in
   const loadHistory = async () => {
     try {
       const res = await axios.get(`${API_BASE}/NewtonRaphson/history`, {
@@ -56,20 +54,27 @@ function App() {
   };
 
   const handleStart = async (req) => {
-    const conn = await connectSignalR(
-      (id, prog) => setProgress(prog),
-      async (id, data) => {
-        setStatus(data.status);
-        setResult(data.result);
+    try {
+      const conn = await connectSignalR(
+        (id, prog) => setProgress(prog),
+        async (id, data) => {
+          setStatus(data.status);
+          setResult(data.result);
 
-        // ✅ Reload history when a solve finishes
-        if (data.status === "Completed" || data.status.startsWith("Failed")) {
-          await loadHistory();
+          if (data.status === "Completed" || data.status.startsWith("Failed")) {
+            await loadHistory();
+          }
         }
-      }
-    );
-    const res = await startSolve(req);
-    setTaskId(res.taskId);
+      );
+
+      const res = await startSolve(req);
+      setTaskId(res.taskId);
+      setStatus("In Progress");
+      setResult(null);
+      setProgress(0);
+    } catch (err) {
+      alert(`❌ ${err.message}`);
+    }
   };
 
   return (

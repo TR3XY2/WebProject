@@ -59,9 +59,18 @@ export async function startSolve(request) {
     throw new Error("SignalR not connected");
   }
 
-  const headers = { "X-Connection-ID": connection.connectionId };
-  const response = await axios.post(`${API_BASE}/solve`, request, { headers });
-  return response.data;
+  try {
+    const headers = { "X-Connection-ID": connection.connectionId };
+    const response = await axios.post(`${API_BASE}/solve`, request, { headers });
+    return response.data;
+  } catch (err) {
+    const msg =
+      err.response?.data ||
+      err.response?.data?.detail ||
+      err.message ||
+      "Unknown error";
+    throw new Error(msg);
+  }
 }
 
 export async function cancelTask(taskId) {
