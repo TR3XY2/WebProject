@@ -5,6 +5,8 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>newton_raphson_backend</RootNamespace>
+	  <IsPackable>false</IsPackable>
+	  <EnableMultipleLaunches>true</EnableMultipleLaunches>
   </PropertyGroup>
 
   <ItemGroup>

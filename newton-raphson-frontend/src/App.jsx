@@ -8,7 +8,7 @@ import RegisterForm from "./components/RegisterForm";
 import HistoryTable from "./components/HistoryTable";
 import { connectSignalR, startSolve, cancelTask } from "./api/newtonRaphsonApi";
 
-const API_BASE = "https://localhost:5001/api";
+const API_BASE = "https://localhost/api";
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -61,7 +61,7 @@ function App() {
           setStatus(data.status);
           setResult(data.result);
 
-          if (data.status === "Completed" || data.status.startsWith("Failed")) {
+          if (data.status === "Completed" || data.status === "Cancelled" || data.status.startsWith("Failed")) {
             await loadHistory();
           }
         }

@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Identity;
+﻿using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using newton_raphson_backend.Data;
 using newton_raphson_backend.Models;
@@ -21,13 +22,18 @@ builder.Services.AddIdentity<IdentityUser, IdentityRole>(options =>
 builder.Services.ConfigureApplicationCookie(options =>
 {
     options.Cookie.HttpOnly = true;
+
     options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
     options.Cookie.SameSite = SameSiteMode.None;
+
     options.Cookie.Name = "NewtonAuth";
+
     options.LoginPath = "/api/Auth/login";
     options.LogoutPath = "/api/Auth/logout";
     options.SlidingExpiration = true;
 });
+
+
 
 builder.Services.AddControllers();
 builder.Services.AddSignalR();
@@ -37,7 +43,7 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddCors(o =>
 {
     o.AddPolicy("AllowReactApp", p =>
-        p.WithOrigins("http://localhost:3000", "https://localhost:3000")
+        p.WithOrigins("http://localhost:3000", "https://localhost:3000", "https://localhost")
          .AllowAnyHeader()
          .AllowAnyMethod()
          .AllowCredentials());
@@ -51,6 +57,11 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor |
+                       ForwardedHeaders.XForwardedProto
+});
 app.UseHttpsRedirection();
 app.UseRouting();
 app.UseCors("AllowReactApp");
@@ -60,5 +71,11 @@ app.UseAuthorization();
 
 app.MapControllers();
 app.MapHub<ProgressHub>("/progressHub").RequireCors("AllowReactApp");
+
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    db.Database.Migrate();
+}
 
 await app.RunAsync();

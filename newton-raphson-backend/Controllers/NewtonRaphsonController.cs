@@ -15,9 +15,9 @@ namespace newton_raphson_backend.Controllers
     {
         private readonly IHubContext<ProgressHub> _hubContext;
         private static readonly ConcurrentDictionary<string, TaskProgress> _tasks = new();
-        private readonly AppDbContext _db; // only used for normal request handling (not reused in background)
+        private readonly AppDbContext _db;
         private readonly UserManager<IdentityUser> _userManager;
-        private readonly IServiceScopeFactory _scopeFactory; // use factory to create scopes inside background tasks
+        private readonly IServiceScopeFactory _scopeFactory;
 
         public NewtonRaphsonController(
             IHubContext<ProgressHub> hubContext,
@@ -97,7 +97,7 @@ namespace newton_raphson_backend.Controllers
                         if (targetClient != null)
                         {
                             try { await targetClient.SendAsync("ProgressUpdate", taskId, progress.Progress); }
-                            catch { /* ignore SignalR send errors in background */ }
+                            catch { }
                         }
 
                         if (Math.Abs(xNext - x) < request.Tolerance)
@@ -124,9 +124,6 @@ namespace newton_raphson_backend.Controllers
                         catch { /* ignore */ }
                     }
 
-                    // ------------------------
-                    // persist history if user was authenticated when request started
-                    // ------------------------
                     if (!string.IsNullOrEmpty(capturedUserId))
                     {
                         try

@@ -1,8 +1,8 @@
 import axios from "axios";
 import * as signalR from "@microsoft/signalr";
 
-const API_BASE = "https://localhost:5001/api/NewtonRaphson";
-const HUB_URL = "https://localhost:5001/progressHub";
+const API_BASE = "https://localhost/api/NewtonRaphson";
+const HUB_URL = "https://localhost/progressHub";
 
 let connection = null;
 
@@ -33,7 +33,6 @@ export async function connectSignalR(onProgress, onCompleted) {
     onCompleted(taskId, data);
   });
 
-
   connection.onclose((err) => {
     console.warn("🛑 SignalR disconnected", err);
   });
@@ -55,13 +54,18 @@ export async function connectSignalR(onProgress, onCompleted) {
 }
 
 export async function startSolve(request) {
-  if (!connection || connection.state !== signalR.HubConnectionState.Connected) {
+  if (
+    !connection ||
+    connection.state !== signalR.HubConnectionState.Connected
+  ) {
     throw new Error("SignalR not connected");
   }
 
   try {
     const headers = { "X-Connection-ID": connection.connectionId };
-    const response = await axios.post(`${API_BASE}/solve`, request, { headers });
+    const response = await axios.post(`${API_BASE}/solve`, request, {
+      headers,
+    });
     return response.data;
   } catch (err) {
     const msg =

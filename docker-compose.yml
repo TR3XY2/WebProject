@@ -1,0 +1,71 @@
+version: "3.8"
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: newtonraphsondb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 146325
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 5s
+      retries: 5
+    networks:      # ← ДОДАЙ ЦЕ
+      - appnet     # ← І ЦЕ
+
+  backend1:
+    build:
+      context: ./newton-raphson-backend
+      dockerfile: Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__DefaultConnection: Host=db;Port=5432;Database=newtonraphsondb;Username=postgres;Password=146325
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - appnet
+
+  backend2:
+    build:
+      context: ./newton-raphson-backend
+      dockerfile: Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__DefaultConnection: Host=db;Port=5432;Database=newtonraphsondb;Username=postgres;Password=146325
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - appnet
+
+  react:
+    build:
+      context: ./newton-raphson-frontend
+      dockerfile: Dockerfile.react
+    networks:
+      - appnet
+
+  nginx:
+    image: nginx:stable-alpine
+    volumes:
+      - ./nginx/proxy.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
+    ports:
+      - "443:443"
+      - "80:80"
+    depends_on:
+      - backend1
+      - backend2
+      - react
+    networks:
+      - appnet
+
+volumes:
+  pgdata:
+
+networks:
+  appnet:
+    driver: bridge
