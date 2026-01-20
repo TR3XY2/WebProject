@@ -68,12 +68,14 @@ npm install
 npm start
 ```
 
-For local development without Nginx, update these JavaScript constants in the source files (defaults shown):
+For local development without Nginx, manually edit these hardcoded JavaScript constants directly in the source files (defaults shown):
 
 - `newton-raphson-frontend/src/App.jsx` → `API_BASE` (default: `https://localhost/api`)
 - `newton-raphson-frontend/src/api/newtonRaphsonApi.js` → `API_BASE` (default: `https://localhost/api/NewtonRaphson`) and `HUB_URL` (default: `https://localhost/progressHub`)
 
-Point them to the backend instance you want to hit (for example, `https://localhost:5001/api`, `https://localhost:5001/api/NewtonRaphson`, and `https://localhost:5001/progressHub`). When using Docker Compose + Nginx, the default `https://localhost` values work. For future maintenance, you may want to move these to environment variables.
+Point them to the backend instance you want to hit (for example, `https://localhost:5001/api`, `https://localhost:5001/api/NewtonRaphson`, and `https://localhost:5001/progressHub`).
+When using Docker Compose + Nginx, the default `https://localhost` values work.
+For future maintenance, you may want to move these to environment variables.
 
 ### Trust the Development Certificate
 
