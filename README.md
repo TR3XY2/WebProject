@@ -40,21 +40,22 @@ Once running, open:
 
 ### Backend
 
-Create `newton-raphson-backend/appsettings.json` with a connection string:
+Create `newton-raphson-backend/appsettings.json` with a connection string (use your own password):
 
 ```json
 {
   "ConnectionStrings": {
-    "DefaultConnection": "Host=localhost;Port=5432;Database=newtonraphsondb;Username=postgres;Password=146325"
+    "DefaultConnection": "Host=localhost;Port=5432;Database=newtonraphsondb;Username=postgres;Password=your_password_here"
   }
 }
 ```
 
-Run the backend:
+Run the backend (from the backend folder):
 
 ```bash
-dotnet run --project newton-raphson-backend --launch-profile Backend5001
-dotnet run --project newton-raphson-backend --launch-profile Backend5002
+cd newton-raphson-backend
+dotnet run --launch-profile Backend5001
+dotnet run --launch-profile Backend5002
 ```
 
 > On Windows, you can also use `run-backends.ps1` to start both instances.
@@ -67,7 +68,12 @@ npm install
 npm start
 ```
 
-The frontend expects the API at `https://localhost` and the SignalR hub at `https://localhost/progressHub`.
+For local development without Nginx, update these constants:
+
+- `newton-raphson-frontend/src/App.jsx` → `API_BASE`
+- `newton-raphson-frontend/src/api/newtonRaphsonApi.js` → `API_BASE` and `HUB_URL`
+
+Point them to the backend instance you want to hit (for example, `https://localhost:5001` and `https://localhost:5001/progressHub`). When using Docker Compose + Nginx, the default `https://localhost` values work.
 
 ### Trust the Development Certificate
 
